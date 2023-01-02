@@ -1,5 +1,5 @@
 local LXSC = {
-	VERSION="0.14",
+	VERSION="0.14.1",
 	scxmlNS="http://www.w3.org/2005/07/scxml"
 }
 
@@ -381,6 +381,9 @@ end
 function LXSC.Transition:conditionMatched(datamodel)
 	if self.cond then
 		local result = datamodel:eval(self.cond)
+		if result == LXSC.Datamodel.EVALERROR then
+			print("Evaluation failed for condition:",self.cond)
+		end
 		return result and (result ~= LXSC.Datamodel.EVALERROR)
 	end
 	return true
@@ -1205,22 +1208,23 @@ function S:mainEventLoop()
 					self.running = false
 				else
 					self._data:_setSystem('_event',externalEvent)
-						for _,state in ipairs(self._configuration) do
-							for _,inv in ipairs(state._invokes) do
-								if inv.invokeid == externalEvent.invokeid then self:applyFinalize(inv, externalEvent) end
-								if inv.autoforward then self:send(inv.id, externalEvent) end
-							end
-						end
-						enabledTransitions = self:selectTransitions(externalEvent)
-						if not enabledTransitions:isEmpty() then
-							anyTransition = true
-							self:microstep(enabledTransitions)
+					for _,state in ipairs(self._configuration) do
+						for _,inv in ipairs(state._invokes) do
+							if inv.invokeid == externalEvent.invokeid then self:applyFinalize(inv, externalEvent) end
+							if inv.autoforward then self:send(inv.id, externalEvent) end
 						end
 					end
+					enabledTransitions = self:selectTransitions(externalEvent)
+					if not enabledTransitions:isEmpty() then
+						anyTransition = true
+						self:microstep(enabledTransitions)
+					end
 				end
+			end
 
 			-- (LXSC specific) we stop iterating as soon as no transitions occur
-			if not anyTransition then break end
+			-- AND no external (including delayed!) events are waiting
+			if not anyTransition and self._externalQueue:isEmpty() then break end
 		end
 	end
 
