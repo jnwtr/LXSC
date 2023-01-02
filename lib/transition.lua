@@ -58,6 +58,9 @@ end
 function LXSC.Transition:conditionMatched(datamodel)
 	if self.cond then
 		local result = datamodel:eval(self.cond)
+		if result == LXSC.Datamodel.EVALERROR then
+			print("Evaluation failed for condition:",self.cond)
+		end
 		return result and (result ~= LXSC.Datamodel.EVALERROR)
 	end
 	return true
